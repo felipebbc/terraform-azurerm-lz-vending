@@ -1,6 +1,7 @@
 variable "location" {
   type        = string
   description = <<DESCRIPTION
+TEST
 The default location of resources created by this module.
 Virtual networks will be created in this location unless overridden by the `location` attribute.
 DESCRIPTION
