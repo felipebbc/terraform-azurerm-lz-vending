@@ -153,3 +153,47 @@ resource "azapi_resource" "subscription_dfc_contact" {
     time_sleep.wait_for_subscription_before_subscription_operations
   ]
 }
+
+# Register Microsoft.Security Resource Provider due to non-standard 404 error
+# code from the Microsoft.Security/pricings@2024-01-01 API which prevents 
+# automatic registration by the azapi provider
+# https://github.com/Azure/azure-sdk-for-go/issues/22563
+resource "azapi_resource_action" "resource_provider_registration" {
+  count       = length(var.subscription_dfc_plans) > 0 ? 1 : 0
+  type        = "Microsoft.Resources/subscriptions@2021-04-01"
+  resource_id = "/subscriptions/${local.subscription_id}"
+  action      = "providers/Microsoft.Security/register"
+  method      = "POST"
+  depends_on  = [time_sleep.wait_for_subscription_before_subscription_operations]
+}
+
+resource "time_sleep" "wait_for_provider_registration" {
+  count           = length(var.subscription_dfc_plans) > 0 ? 1 : 0
+  depends_on      = [azapi_resource_action.resource_provider_registration]
+  create_duration = "30s"
+}
+
+resource "azapi_update_resource" "subscription_dfc_plans" {
+  for_each  = var.subscription_dfc_plans
+  parent_id = "/subscriptions/${local.subscription_id}"
+  type      = "Microsoft.Security/pricings@2024-01-01"
+  name      = each.key
+  body = jsonencode({
+    properties = {
+      pricingTier = each.value.tier
+      subPlan     = each.value.subplan
+      extensions = [
+        for extension in each.value.extensions : {
+          name                          = extension.name
+          isEnabled                     = extension.enabled ? "True" : "False"
+          additionalExtensionProperties = extension.additional_extension_properties
+        }
+      ]
+    }
+  })
+
+  depends_on = [
+    time_sleep.wait_for_subscription_before_subscription_operations,
+    time_sleep.wait_for_provider_registration
+  ]
+}

@@ -13,7 +13,7 @@ The module is designed to be instantiated many times, once for each desired land
 This is currently split logically into the following capabilities:
 
 - Subscription creation and management group placement
-  - Microsoft Defender for Cloud (DFC) security contact
+  - Microsoft Defender for Cloud (DFC) security contact and pricing plans
 - Networking - deploy multiple vnets with:
   - Hub & spoke connectivity (peering to a hub network)
   - vWAN connectivity
@@ -69,6 +69,15 @@ module "lz_vending" {
   subscription_dfc_contact_enabled = true
   subscription_dfc_contact = {
     emails = "john@microsoft.com;jane@microsoft.com"
+  }
+  subscription_dfc_plans = {
+    CloudPosture = {
+      tier = "Standard"
+    }
+    VirtualMachines = {
+      tier    = "Standard"
+      subplan = "P2"
+    }
   }
 
   # virtual network variables

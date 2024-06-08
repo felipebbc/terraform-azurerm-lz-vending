@@ -14,7 +14,7 @@ The module is designed to be instantiated many times, once for each desired land
 This is currently split logically into the following capabilities:
 
 - Subscription creation and management group placement
-  - Microsoft Defender for Cloud (DFC) security contact
+  - Microsoft Defender for Cloud (DFC) security contact and pricing plans
 - Networking - deploy multiple vnets with:
   - Hub & spoke connectivity (peering to a hub network)
   - vWAN connectivity
@@ -70,6 +70,15 @@ module "lz_vending" {
   subscription_dfc_contact_enabled = true
   subscription_dfc_contact = {
     emails = "john@microsoft.com;jane@microsoft.com"
+  }
+  subscription_dfc_plans = {
+    CloudPosture = {
+      tier = "Standard"
+    }
+    VirtualMachines = {
+      tier    = "Standard"
+      subplan = "P2"
+    }
   }
 
   # virtual network variables
@@ -493,7 +502,7 @@ Description: Microsoft Defender for Cloud (DFC) contact and notification configu
 
 ### Security Contact Information - Determines who'll get email notifications from Defender for Cloud
 
-- `notifications_by_role`: All users with these specific RBAC roles on the subscription will get email notifications. [optional - allowed values are: `AccountAdmin`, `ServiceAdmin`, `Owner` and `Contributor` - default empty]"
+- `notifications_by_role`: All users with these specific RBAC roles on the subscription will get email notifications. [optional - allowed values are: `AccountAdmin`, `ServiceAdmin`, `Owner` and `Contributor` - default empty]
 - `emails`: List of additional email addresses which will get notifications. Multiple emails can be provided in a ; separated list. Example: "john@microsoft.com;jane@microsoft.com". [optional - default empty]
 - `phone`: The security contact's phone number. [optional - default empty]
 > **Note**: At least one role or email address must be provided to enable alert notification.
@@ -523,6 +532,37 @@ If enabled, provide settings in var.subscription\_dfc\_contact
 Type: `bool`
 
 Default: `false`
+
+### <a name="input_subscription_dfc_plans"></a> [subscription\_dfc\_plans](#input\_subscription\_dfc\_plans)
+
+Description: Microsoft Defender for Cloud (DFC) - Cloud Security Posture Management (CSPM) and Cloud Workload Protection (CWP) pricing plans for the subscription
+
+The may key defines the DFC plan to enable. [required - allowed values are: Api, AppServices, Arm, CloudPosture, ContainerRegistry, Containers, CosmosDbs, Dns, KeyVaults, KubernetesService, OpenSourceRelationalDatabases, SqlServers, SqlServerVirtualMachines, StorageAccounts, VirtualMachines.]
+
+The map value is an object with the following attributes:
+
+- `tier`: Indicates whether the Defender plan is enabled on the selected scope. Microsoft Defender for Cloud is provided in two pricing tiers: Free and Standard. The Standard tier offers advanced security capabilities, while the Free tier offers basic security features. [optional - allowed values are: `Free` and `Standard` - default `Free`]
+- `subplan`: The sub-plan selected for a Standard pricing configuration, when more than one sub-plan is available. Each sub-plan enables a set of security features. When not specified, full plan is applied. [optional - default empty]
+- `extensions`: List of extensions offered under a plan. [optional - default empty]
+  - `name`: Name of the extension to enable. [required]
+  - `enabled`: Whether to enable the extension. [optional - default `true`]
+  - `additional_extension_properties`: Map of property values associated with the extension. [optional - default `null`]
+
+Type:
+
+```hcl
+map(object({
+    tier    = optional(string, "Free")
+    subplan = optional(string, "")
+    extensions = optional(list(object({
+      name                            = string
+      enabled                         = optional(bool, true)
+      additional_extension_properties = optional(map(string), null)
+    })), [])
+  }))
+```
+
+Default: `{}`
 
 ### <a name="input_subscription_display_name"></a> [subscription\_display\_name](#input\_subscription\_display\_name)
 

@@ -221,7 +221,7 @@ Microsoft Defender for Cloud (DFC) contact and notification configurations
 
 ### Security Contact Information - Determines who'll get email notifications from Defender for Cloud 
 
-- `notifications_by_role`: All users with these specific RBAC roles on the subscription will get email notifications. [optional - allowed values are: `AccountAdmin`, `ServiceAdmin`, `Owner` and `Contributor` - default empty]"
+- `notifications_by_role`: All users with these specific RBAC roles on the subscription will get email notifications. [optional - allowed values are: `AccountAdmin`, `ServiceAdmin`, `Owner` and `Contributor` - default empty]
 - `emails`: List of additional email addresses which will get notifications. Multiple emails can be provided in a ; separated list. Example: "john@microsoft.com;jane@microsoft.com". [optional - default empty]
 - `phone`: The security contact's phone number. [optional - default empty]
 > **Note**: At least one role or email address must be provided to enable alert notification.
@@ -230,5 +230,32 @@ Microsoft Defender for Cloud (DFC) contact and notification configurations
 
 - `alert_notifications`: Enables email notifications and defines the minimal alert severity. [optional - allowed values are: `Off`, `High`, `Medium` or `Low` - default `Off`]
 
+DESCRIPTION
+}
+
+variable "subscription_dfc_plans" {
+  type = map(object({
+    tier    = optional(string, "Free")
+    subplan = optional(string, "")
+    extensions = optional(list(object({
+      name                            = string
+      enabled                         = optional(bool, true)
+      additional_extension_properties = optional(map(string), null)
+    })), [])
+  }))
+  default     = {}
+  description = <<DESCRIPTION
+Microsoft Defender for Cloud (DFC) - Cloud Security Posture Management (CSPM) and Cloud Workload Protection (CWP) pricing plans for the subscription
+
+The may key defines the DFC plan to enable. [required - allowed values are: Api, AppServices, Arm, CloudPosture, ContainerRegistry, Containers, CosmosDbs, Dns, KeyVaults, KubernetesService, OpenSourceRelationalDatabases, SqlServers, SqlServerVirtualMachines, StorageAccounts, VirtualMachines.]
+
+The map value is an object with the following attributes:
+
+- `tier`: Indicates whether the Defender plan is enabled on the selected scope. Microsoft Defender for Cloud is provided in two pricing tiers: Free and Standard. The Standard tier offers advanced security capabilities, while the Free tier offers basic security features. [optional - allowed values are: `Free` and `Standard` - default `Free`]
+- `subplan`: The sub-plan selected for a Standard pricing configuration, when more than one sub-plan is available. Each sub-plan enables a set of security features. When not specified, full plan is applied. [optional - default empty]
+- `extensions`: List of extensions offered under a plan. [optional - default empty]
+  - `name`: Name of the extension to enable. [required]
+  - `enabled`: Whether to enable the extension. [optional - default `true`]
+  - `additional_extension_properties`: Map of property values associated with the extension. [optional - default `null`]
 DESCRIPTION
 }

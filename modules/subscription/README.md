@@ -7,7 +7,7 @@ Creates a subscription alias
 Optionally:
 
 - Associates the resulting subscription to a management group
-- Creates the Microsoft Defender for Cloud (DFC) security contact and enables notifications
+- Configures Microsoft Defender for Cloud (DFC) security contact, CSPM, and CWP pricing plans
 
 ## Notes
 
@@ -31,6 +31,15 @@ module "subscription" {
     emails                = "john@microsoft.com;jane@microsoft.com"
     phone                 = "+1-555-555-5555"
     alert_notifications   = "Medium"
+  }
+  subscription_dfc_plans = {
+    CloudPosture = {
+      tier = "Standard"
+    }
+    VirtualMachines = {
+      tier    = "Standard"
+      subplan = "P2"
+    }
   }
 }
 ```
@@ -128,7 +137,7 @@ Description: Microsoft Defender for Cloud (DFC) contact and notification configu
 
 ### Security Contact Information - Determines who'll get email notifications from Defender for Cloud
 
-- `notifications_by_role`: All users with these specific RBAC roles on the subscription will get email notifications. [optional - allowed values are: `AccountAdmin`, `ServiceAdmin`, `Owner` and `Contributor` - default empty]"
+- `notifications_by_role`: All users with these specific RBAC roles on the subscription will get email notifications. [optional - allowed values are: `AccountAdmin`, `ServiceAdmin`, `Owner` and `Contributor` - default empty]
 - `emails`: List of additional email addresses which will get notifications. Multiple emails can be provided in a ; separated list. Example: "john@microsoft.com;jane@microsoft.com". [optional - default empty]
 - `phone`: The security contact's phone number. [optional - default empty]
 > **Note**: At least one role or email address must be provided to enable alert notification.
@@ -158,6 +167,136 @@ If enabled, provide settings in var.subscription\_dfc\_contact
 Type: `bool`
 
 Default: `false`
+
+### <a name="input_subscription_dfc_plans"></a> [subscription\_dfc\_plans](#input\_subscription\_dfc\_plans)
+
+Description: Microsoft Defender for Cloud (DFC) - Cloud Security Posture Management (CSPM) and Cloud Workload Protection (CWP) pricing plans for the subscription
+
+The may key defines the DFC plan to enable. [required - allowed values are: Api, AppServices, Arm, CloudPosture, ContainerRegistry, Containers, CosmosDbs, Dns, KeyVaults, KubernetesService, OpenSourceRelationalDatabases, SqlServers, SqlServerVirtualMachines, StorageAccounts, VirtualMachines.]
+
+The map value is an object with the following attributes:
+
+- `tier`: Indicates whether the Defender plan is enabled on the selected scope. Microsoft Defender for Cloud is provided in two pricing tiers: Free and Standard. The Standard tier offers advanced security capabilities, while the Free tier offers basic security features. [optional - allowed values are: Free and Standard - default `Free`]
+- `subplan`: The sub-plan selected for a Standard pricing configuration, when more than one sub-plan is available. Each sub-plan enables a set of security features. When not specified, full plan is applied. [optional - default empty]
+- `extensions`: List of extensions offered under a plan. [optional - default empty]
+  - `name`: Name of the extension to enable. [required]
+  - `enabled`: Whether to enable the extension. [optional - default `true`]
+  - `additional_extension_properties`: Map of property values associated with the extension. [optional - default `null`]
+
+Example value:
+
+```terraform
+subscription_dfc_plans = {
+  CloudPosture = {
+    tier = "Standard"
+    extensions = [
+      {
+        name = "SensitiveDataDiscovery"
+      },
+      {
+        name = "ContainerRegistriesVulnerabilityAssessments"
+      },
+      {
+        name = "AgentlessDiscoveryForKubernetes"
+      },
+      {
+        name = "AgentlessVmScanning"
+        additional_extension_properties = {
+          # ExclusionTags = "[{\"Key\":\"TestKey1\",\"Value\":\"TestValue1\"},{\"Key\":\"TestKey2\",\"Value\":\"TestValue2\"}]"
+        }
+      },
+      {
+        name = "EntraPermissionsManagement"
+      }
+    ]
+  }
+  VirtualMachines = {
+    tier    = "Standard"
+    subplan = "P2"
+    extensions = [
+      {
+        enabled = false
+        name    = "MdeDesignatedSubscription"
+      },
+      {
+        name = "AgentlessVmScanning"
+        additional_extension_properties = {
+          ExclusionTags = "[{\"Key\":\"TestKey1\",\"Value\":\"TestValue1\"},{\"Key\":\"TestKey2\",\"Value\":\"TestValue2\"}]"
+        }
+      }
+    ]
+  }
+  AppServices = {
+    tier = "Standard"
+  }
+  SqlServers = {
+    tier = "Standard"
+  }
+  SqlServerVirtualMachines = {
+    tier = "Standard"
+  }
+  OpenSourceRelationalDatabases = {
+    tier = "Standard"
+  }
+  CosmosDbs = {
+    tier = "Standard"
+  }
+  StorageAccounts = {
+    tier    = "Standard"
+    subplan = "DefenderForStorageV2"
+    extensions = [
+      {
+        name = "OnUploadMalwareScanning"
+        additional_extension_properties = {
+          CapGBPerMonthPerStorageAccount = "10"
+        }
+      },
+      {
+        name = "SensitiveDataDiscovery"
+      }
+    ]
+  }
+  Containers = {
+    tier = "Standard"
+    extensions = [
+      {
+        name = "ContainerRegistriesVulnerabilityAssessments"
+      },
+      {
+        name = "AgentlessDiscoveryForKubernetes"
+      }
+    ]
+  }
+  Arm = {
+    tier    = "Standard"
+    subplan = "PerSubscription"
+  }
+  KeyVaults = {
+    tier    = "Standard"
+    subplan = "PerKeyVault"
+  }
+  Api = {
+    tier    = "Standard"
+    subplan = "P1"
+  }
+}
+```
+
+Type:
+
+```hcl
+map(object({
+    tier    = optional(string, "Free")
+    subplan = optional(string, "")
+    extensions = optional(list(object({
+      name                            = string
+      enabled                         = optional(bool, true)
+      additional_extension_properties = optional(map(string), null)
+    })), [])
+  }))
+```
+
+Default: `{}`
 
 ### <a name="input_subscription_display_name"></a> [subscription\_display\_name](#input\_subscription\_display\_name)
 
@@ -273,13 +412,16 @@ The following resources are used by this module:
 
 - [azapi_resource.subscription](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [azapi_resource.subscription_dfc_contact](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [azapi_resource_action.resource_provider_registration](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource_action) (resource)
 - [azapi_resource_action.subscription_association](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource_action) (resource)
 - [azapi_resource_action.subscription_cancel](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource_action) (resource)
 - [azapi_resource_action.subscription_rename](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource_action) (resource)
+- [azapi_update_resource.subscription_dfc_plans](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/update_resource) (resource)
 - [azapi_update_resource.subscription_tags](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/update_resource) (resource)
 - [azurerm_management_group_subscription_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/management_group_subscription_association) (resource)
 - [azurerm_subscription.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subscription) (resource)
 - [terraform_data.replacement](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/resources/data) (resource)
+- [time_sleep.wait_for_provider_registration](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) (resource)
 - [time_sleep.wait_for_subscription_before_subscription_operations](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) (resource)
 - [azapi_resource_list.subscription_management_group_association](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/resource_list) (data source)
 - [azapi_resource_list.subscriptions](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/resource_list) (data source)

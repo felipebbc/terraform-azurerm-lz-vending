@@ -219,7 +219,7 @@ Microsoft Defender for Cloud (DFC) contact and notification configurations
 
 ### Security Contact Information - Determines who'll get email notifications from Defender for Cloud 
 
-- `notifications_by_role`: All users with these specific RBAC roles on the subscription will get email notifications. [optional - allowed values are: `AccountAdmin`, `ServiceAdmin`, `Owner` and `Contributor` - default empty]"
+- `notifications_by_role`: All users with these specific RBAC roles on the subscription will get email notifications. [optional - allowed values are: `AccountAdmin`, `ServiceAdmin`, `Owner` and `Contributor` - default empty]
 - `emails`: List of additional email addresses which will get notifications. Multiple emails can be provided in a ; separated list. Example: "john@microsoft.com;jane@microsoft.com". [optional - default empty]
 - `phone`: The security contact's phone number. [optional - default empty]
 > **Note**: At least one role or email address must be provided to enable alert notification.
@@ -259,5 +259,157 @@ DESCRIPTION
     condition     = (var.subscription_dfc_contact.alert_notifications == "Off" ? true : var.subscription_dfc_contact.emails != "" || length(var.subscription_dfc_contact.notifications_by_role) > 0)
     error_message = "To enable alert notifications, either an email address or role must be provided."
   }
+}
 
+variable "subscription_dfc_plans" {
+  type = map(object({
+    tier    = optional(string, "Free")
+    subplan = optional(string, "")
+    extensions = optional(list(object({
+      name                            = string
+      enabled                         = optional(bool, true)
+      additional_extension_properties = optional(map(string), null)
+    })), [])
+  }))
+  default     = {}
+  description = <<DESCRIPTION
+Microsoft Defender for Cloud (DFC) - Cloud Security Posture Management (CSPM) and Cloud Workload Protection (CWP) pricing plans for the subscription
+
+The may key defines the DFC plan to enable. [required - allowed values are: Api, AppServices, Arm, CloudPosture, ContainerRegistry, Containers, CosmosDbs, Dns, KeyVaults, KubernetesService, OpenSourceRelationalDatabases, SqlServers, SqlServerVirtualMachines, StorageAccounts, VirtualMachines.]
+
+The map value is an object with the following attributes:
+
+- `tier`: Indicates whether the Defender plan is enabled on the selected scope. Microsoft Defender for Cloud is provided in two pricing tiers: Free and Standard. The Standard tier offers advanced security capabilities, while the Free tier offers basic security features. [optional - allowed values are: Free and Standard - default `Free`]
+- `subplan`: The sub-plan selected for a Standard pricing configuration, when more than one sub-plan is available. Each sub-plan enables a set of security features. When not specified, full plan is applied. [optional - default empty]
+- `extensions`: List of extensions offered under a plan. [optional - default empty]
+  - `name`: Name of the extension to enable. [required]
+  - `enabled`: Whether to enable the extension. [optional - default `true`]
+  - `additional_extension_properties`: Map of property values associated with the extension. [optional - default `null`]
+
+Example value:
+
+```terraform
+subscription_dfc_plans = {
+  CloudPosture = {
+    tier = "Standard"
+    extensions = [
+      {
+        name = "SensitiveDataDiscovery"
+      },
+      {
+        name = "ContainerRegistriesVulnerabilityAssessments"
+      },
+      {
+        name = "AgentlessDiscoveryForKubernetes"
+      },
+      {
+        name = "AgentlessVmScanning"
+        additional_extension_properties = {
+          # ExclusionTags = "[{\"Key\":\"TestKey1\",\"Value\":\"TestValue1\"},{\"Key\":\"TestKey2\",\"Value\":\"TestValue2\"}]"
+        }
+      },
+      {
+        name = "EntraPermissionsManagement"
+      }
+    ]
+  }
+  VirtualMachines = {
+    tier    = "Standard"
+    subplan = "P2"
+    extensions = [
+      {
+        enabled = false
+        name    = "MdeDesignatedSubscription"
+      },
+      {
+        name = "AgentlessVmScanning"
+        additional_extension_properties = {
+          ExclusionTags = "[{\"Key\":\"TestKey1\",\"Value\":\"TestValue1\"},{\"Key\":\"TestKey2\",\"Value\":\"TestValue2\"}]"
+        }
+      }
+    ]
+  }
+  AppServices = {
+    tier = "Standard"
+  }
+  SqlServers = {
+    tier = "Standard"
+  }
+  SqlServerVirtualMachines = {
+    tier = "Standard"
+  }
+  OpenSourceRelationalDatabases = {
+    tier = "Standard"
+  }
+  CosmosDbs = {
+    tier = "Standard"
+  }
+  StorageAccounts = {
+    tier    = "Standard"
+    subplan = "DefenderForStorageV2"
+    extensions = [
+      {
+        name = "OnUploadMalwareScanning"
+        additional_extension_properties = {
+          CapGBPerMonthPerStorageAccount = "10"
+        }
+      },
+      {
+        name = "SensitiveDataDiscovery"
+      }
+    ]
+  }
+  Containers = {
+    tier = "Standard"
+    extensions = [
+      {
+        name = "ContainerRegistriesVulnerabilityAssessments"
+      },
+      {
+        name = "AgentlessDiscoveryForKubernetes"
+      }
+    ]
+  }
+  Arm = {
+    tier    = "Standard"
+    subplan = "PerSubscription"
+  }
+  KeyVaults = {
+    tier    = "Standard"
+    subplan = "PerKeyVault"
+  }
+  Api = {
+    tier    = "Standard"
+    subplan = "P1"
+  }
+}
+```
+DESCRIPTION
+
+  # validate the DFC plans
+  validation {
+    condition = alltrue([
+      for k, v in var.subscription_dfc_plans :
+      contains(["Api", "AppServices", "Arm", "CloudPosture", "ContainerRegistry", "Containers", "CosmosDbs", "Dns", "KeyVaults", "KubernetesService", "OpenSourceRelationalDatabases", "SqlServers", "SqlServerVirtualMachines", "StorageAccounts", "VirtualMachines"], k)
+    ])
+    error_message = "Invalid Defender for Cloud plan. Valid options are Api, AppServices, Arm, CloudPosture, ContainerRegistry, Containers, CosmosDbs, Dns, KeyVaults, KubernetesService, OpenSourceRelationalDatabases, SqlServers, SqlServerVirtualMachines, StorageAccounts, VirtualMachines."
+  }
+
+  # validate the DFC plan tier
+  validation {
+    condition = alltrue([
+      for k, v in var.subscription_dfc_plans :
+      contains(["Free", "Standard"], v.tier)
+    ])
+    error_message = "Invalid tier on Defender for Cloud plan. Valid options are Free or Standard."
+  }
+
+  # validate that if a subplan or extension is specified, the tier is Standard
+  validation {
+    condition = alltrue([
+      for k, v in var.subscription_dfc_plans :
+      v.subplan != "" || v.extensions != [] ? v.tier == "Standard" : true
+    ])
+    error_message = "DFC subplan and extension can only be provided for Standard tier."
+  }
 }

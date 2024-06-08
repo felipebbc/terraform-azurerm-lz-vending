@@ -5,8 +5,8 @@
 Creates a subscription alias
 Optionally:
 
-- Associates the resulting subscription to a management group
-- Creates the Microsoft Defender for Cloud (DFC) security contact and enables notifications
+- Associates the resulting subscription to a management group 
+- Configures Microsoft Defender for Cloud (DFC) security contact, CSPM, and CWP pricing plans
 
 ## Notes
 
@@ -30,6 +30,15 @@ module "subscription" {
     emails                = "john@microsoft.com;jane@microsoft.com"
     phone                 = "+1-555-555-5555"
     alert_notifications   = "Medium"
+  }
+  subscription_dfc_plans = {
+    CloudPosture = {
+      tier = "Standard"
+    }
+    VirtualMachines = {
+      tier    = "Standard"
+      subplan = "P2"
+    }
   }
 }
 ```
